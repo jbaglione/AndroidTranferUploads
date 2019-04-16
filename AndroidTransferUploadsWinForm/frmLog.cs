@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Mail;
 using System.Net.Mime;
+using System.Collections.Specialized;
 
 namespace AndroidTransferUploadsWinForm
 {
@@ -110,7 +111,7 @@ namespace AndroidTransferUploadsWinForm
                         {
                             //DataTable dt = new DataTable();
                             AdjuntoAndroid adjuntoAndroid = new AdjuntoAndroid();
-                            EmergencyC.IncGrabaciones grabaciones = new EmergencyC.IncGrabaciones();
+                            EmergencyC.IncGrabaciones grabaciones = new EmergencyC.IncGrabaciones(GetConnectionString());
                             adjuntoAndroid = grabaciones.SetAdjuntoAndroid<AdjuntoAndroid>(new DirectoryInfo(currentFolder).Name, Path.GetFileName(origen)).FirstOrDefault();
 
                             if (adjuntoAndroid != null)
@@ -125,7 +126,7 @@ namespace AndroidTransferUploadsWinForm
                     }
                     else
                     {
-                        addLog(true, "TransferFiles", string.Format("No se encontraron imagenes en {0}", root));
+                        addLog(true, "TransferFiles", string.Format("No se encontraron imagenes en {0}", currentFolder));
                     }
                 }
                 // Ignore this exceptions
@@ -147,10 +148,30 @@ namespace AndroidTransferUploadsWinForm
             return files;
         }
 
+        private static ConnectionStringCache GetConnectionString()
+        {
+            NameValueCollection appSettings = ConfigurationManager.AppSettings;
+
+            ConnectionStringCache connectionString = new ConnectionStringCache
+            {
+                Server = appSettings.Get("cacheServer"),
+                Port = appSettings.Get("cachePort"),
+                Namespace = appSettings.Get("cacheNameSpace"),
+                Aplicacion = appSettings.Get("cacheShamanAplicacion"),
+                User = appSettings.Get("cacheShamanUser"),
+                Centro = appSettings.Get("cacheShamanCentro"),
+                Password = appSettings.Get("Password"),
+                UserID = appSettings.Get("UserID")
+            };
+            return connectionString;
+        }
+
         public bool SaveAndRename(string origen, string fileFullPath)
         {
             try
             {
+                addLog(true, "SaveAndRename", string.Format("Origen {0}, destino {1}", origen, fileFullPath));
+
                 if (!File.Exists(origen))
                 {
                     throw new DirectoryNotFoundException();
@@ -159,15 +180,19 @@ namespace AndroidTransferUploadsWinForm
                     //using (FileStream fs = File.Create(origen)) { }
                 }
 
+                addLog(true, "SaveAndRename", "File.Exists(fileFullPath), File.Delete(fileFullPath);");
                 // Ensure that the target does not exist.
                 if (File.Exists(fileFullPath))
                     File.Delete(fileFullPath);
 
+                addLog(true, "SaveAndRename", "if (!Directory.Exists(Path.GetDirectoryName(fileFullPath)))");
                 if (!Directory.Exists(Path.GetDirectoryName(fileFullPath)))
                 {
+                    addLog(true, "SaveAndRename", "Directory.CreateDirectory(Path.GetDirectoryName(fileFullPath));");
                     Directory.CreateDirectory(Path.GetDirectoryName(fileFullPath));
                 }
 
+                addLog(true, "SaveAndRename", "File.Move(origen, fileFullPath);");
                 // Move the file.
                 File.Move(origen, fileFullPath);
                 addLog(true, "SaveAndRename: ", string.Format("{0} Se movio a {1}.", origen, fileFullPath));
@@ -220,28 +245,42 @@ namespace AndroidTransferUploadsWinForm
             if (adjuntosAndroid == null || adjuntosAndroid.Count == 0) return;
             try
             {
+                var groupedAdjuntosAndroid = adjuntosAndroid
+                    .GroupBy(u => u.NroIncidente)
+                    .Select(grp => grp.ToList())
+                    .ToList();
 
-                var adjAndroid = adjuntosAndroid.FirstOrDefault();
+                bool onlyToday = ConfigurationManager.AppSettings.Get("onlyToday") == "1";
 
-                List<string> To = adjAndroid.Destinatarios.Split(';').ToList();
-                string Subject = string.Format(ConfigurationManager.AppSettings["MailSubject"], adjAndroid.FecIncidente.ToShortDateString(), adjAndroid.NroIncidente);
-                string Body = string.Format(ConfigurationManager.AppSettings["MailBody"],
-                    adjAndroid.FecIncidente.ToShortDateString(),
-                    adjAndroid.NroIncidente,
-                    adjAndroid.Cliente,
-                    adjAndroid.NroInterno,
-                    adjAndroid.NroAfiliado,
-                    adjAndroid.Paciente,
-                    adjAndroid.Sexo == "M" ? "Masculino" : "Femenino",
-                    adjAndroid.Edad
-                    );
-                List<string> PathFiles = new List<string>();
-
-                foreach (var item in adjuntosAndroid)
+                foreach (List<AdjuntoAndroid> adjuntosAndroidByIncident in groupedAdjuntosAndroid)
                 {
-                    PathFiles.Add(item.fileFullPath);
+                    var adjAndroid = adjuntosAndroidByIncident.FirstOrDefault();
+                    string fecIncidenteShort = adjAndroid.FecIncidente.ToShortDateString();
+
+                    if (!onlyToday || fecIncidenteShort == DateTime.Now.ToShortDateString())
+                    {
+                        //TODO: Eliminar
+                        List<string> To = adjAndroid.Destinatarios.Split(';').Where(x => x == "jbaglione@paramedic.com.ar").ToList();
+                        string Subject = string.Format(ConfigurationManager.AppSettings["MailSubject"], fecIncidenteShort, adjAndroid.NroIncidente);
+                        string Body = string.Format(ConfigurationManager.AppSettings["MailBody"],
+                            fecIncidenteShort,
+                            adjAndroid.NroIncidente,
+                            adjAndroid.Cliente,
+                            adjAndroid.NroInterno,
+                            adjAndroid.NroAfiliado,
+                            adjAndroid.Paciente,
+                            adjAndroid.Sexo == "M" ? "Masculino" : "Femenino",
+                            adjAndroid.Edad
+                            );
+                        List<string> PathFiles = new List<string>();
+
+                        foreach (var item in adjuntosAndroidByIncident)
+                        {
+                            PathFiles.Add(item.fileFullPath);
+                        }
+                        EmailHelpers.Send(To, Subject, Body, PathFiles, null);
+                    }
                 }
-                EmailHelpers.Send(To, Subject, Body, PathFiles, null);
             }
             catch (Exception ex)
             {

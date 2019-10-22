@@ -15,6 +15,7 @@ using System.Net.Mime;
 using System.Net.Mail;
 using System.Collections.Specialized;
 
+
 namespace AndroidTransferUploads
 {
     public partial class Service1 : ServiceBase
@@ -60,7 +61,7 @@ namespace AndroidTransferUploads
             }
             catch (Exception ex)
             {
-                addLog(false, "ElapsedHandler", string.Format("Exception. {0}", ex.Message));
+                //addLog(false, "ElapsedHandler", string.Format("Exception. {0}", ex.Message));
             }
             
         }
@@ -107,69 +108,58 @@ namespace AndroidTransferUploads
         //    e.Enviar por e - mail a los destinatarios armando el mail con la info recibida en dicha columna
         //Dentro del directorio hay carpetas con los archivos (nroDeMoviles).
         //Los archivos son Nroincidente_FechaHora.jpg 
-        public List<string> TransferFiles(string root)
+        public void TransferFiles(string root)
         {
-            //addLog(true, "TransferFiles", string.Format("Se inicio con root = {0}", root));
-            if (root == null) {
-                //addLog(true, "TransferFiles", string.Format("ArgumentNullException root => {0}.", root));
-                throw new ArgumentNullException("root");
-            }
-            if (string.IsNullOrWhiteSpace(root)) {
-                //addLog(true, "TransferFiles", string.Format("The passed value may not be empty or whithespace root => {0}.", root));
-                throw new ArgumentException("The passed value may not be empty or whithespace", "root");
-            }
-
-            var files = new List<string>();
-
-            var rootDirectory = new DirectoryInfo(root);
-            if (rootDirectory.Exists == false)
-            {
-                //addLog(true, "TransferFiles", string.Format("El directorio {0} no existe.", root));
-                return files;
-            }
-
-            //overcome problem about slash and backslash with using Contains()
-            root = rootDirectory.FullName;
-            //if (isFolderValid(root) == false) { return files; }
+            root = GetFullName(root);
 
             var folders = new Queue<string>();
             folders.Enqueue(root);
-            //addLog(true, "TransferFiles", string.Format("OUT while (folders.Count != 0) => folders.Count = {0}.", folders.Count));
+
+            //addLog(true, "TransferFiles", string.Format("folders.Count = {0}.", folders.Count));
             while (folders.Count != 0)
             {
-                //addLog(true, "TransferFiles", string.Format("IN while (folders.Count != 0) => folders.Count = {0}.", folders.Count));
                 string currentFolder = folders.Dequeue();
-                //addLog(true, "TransferFiles", string.Format("string currentFolder = folders.Dequeue(); => currentFolder = {0}", currentFolder));
+                addLog(true, "TransferFiles", string.Format("currentFolder = {0}", currentFolder));
 
                 try
                 {
                     var currentFiles = Directory.EnumerateFiles(currentFolder, "*.jpg");
-                    //addLog(true, "TransferFiles", string.Format("ar currentFiles = Directory.EnumerateFiles(currentFolder,  *.jpg); => currentFiles = {0}", currentFiles));
-
                     List<AdjuntoAndroid> adjuntosAndroid = new List<AdjuntoAndroid>();
+
+                    addLog(true, "TransferFiles", string.Format("currentFiles.Count = {0}", currentFiles.Count()));
 
                     if (currentFiles.Count() > 0)
                     {
                         foreach (var origen in currentFiles)
                         {
-                            //DataTable dt = new DataTable();
+                            //addLog(true, "TransferFiles", string.Format("origen(currentFile) = {0}", origen));
                             AdjuntoAndroid adjuntoAndroid = new AdjuntoAndroid();
                             EmergencyC.IncGrabaciones grabaciones = new EmergencyC.IncGrabaciones(GetConnectionString());
-                            adjuntoAndroid = grabaciones.SetAdjuntoAndroid<AdjuntoAndroid>(new DirectoryInfo(currentFolder).Name, Path.GetFileName(origen)).FirstOrDefault();
-
-                            if (adjuntoAndroid != null)
+                            string folderName = new DirectoryInfo(currentFolder).Name;
+                            var res = grabaciones.SetAdjuntoAndroid<AdjuntoAndroid>(folderName, Path.GetFileName(origen));
+                            if(res.Count > 0)
                             {
-                                ////TODO: Borrar
-                                //adjuntoAndroid.CarpetaRaiz = "C:\\Paramedic\\AndroidTranferUploads\\AdjuntosParaPrueba\\destino";
-                                if (SaveAndRename(origen, adjuntoAndroid.fileFullPath))
-                                    adjuntosAndroid.Add(adjuntoAndroid);
+                                adjuntoAndroid = res.FirstOrDefault();
+
+                                if (adjuntoAndroid != null)
+                                {
+                                    //adjuntoAndroid.CarpetaRaiz = "C:\\Paramedic\\AndroidTranferUploads\\AdjuntosParaPrueba\\destino";
+                                    if (SaveAndRename(origen, adjuntoAndroid.fileFullPath))
+                                        adjuntosAndroid.Add(adjuntoAndroid);
+                                }
                             }
+                            else
+                            {
+                                addLog(false, "TransferFiles", string.Format("SetAdjuntoAndroid({0}, {1}) no devolvio ningun resultado",
+                                    folderName, Path.GetFileName(origen)));
+                            }
+
                         }
                         EnviarEmail(adjuntosAndroid);
                     }
                     else
                     {
-                        addLog(true, "TransferFiles", string.Format("No se encontraron imagenes en {0}", currentFolder));
+                        //addLog(true, "TransferFiles", string.Format("No se encontraron imagenes en {0}", currentFolder));
                     }
                 }
                 // Ignore this exceptions
@@ -181,23 +171,42 @@ namespace AndroidTransferUploads
                 }
                 try
                 {
-                    //addLog(true, "TransferFiles", string.Format("Antes => var currentSubFolders = Directory.GetDirectories(currentFolder);", currentFolder));
-                    var currentSubFolders = Directory.GetDirectories(currentFolder);//.Where(f => isFolderValid(f));
-
-                    //addLog(true, "TransferFiles", string.Format("currentSubFolders {0}", currentSubFolders));
-
-                    //addLog(true, "TransferFiles", string.Format("Antes foreach Enqueue folders {0}.", folders.ToString()));
+                    var currentSubFolders = Directory.GetDirectories(currentFolder);
                     foreach (string current in currentSubFolders)
                     {
+                        //addLog(true, "TransferFiles", string.Format("currentSubFolder {0}", current));
                         folders.Enqueue(current);
                     }
-                    //addLog(true, "TransferFiles", string.Format("Post foreach Enqueue folders {0}.", folders.ToString()));
+                    //addLog(true, "TransferFiles", "out foreach");
                 }
                 // Ignore this exceptions
                 catch (UnauthorizedAccessException) { }
                 catch (PathTooLongException) { }
             }
-            return files;
+        }
+
+        private string GetFullName(string root)
+        {
+            //addLog(true, "GetFullName", string.Format("Se inicio con root = {0}", root));
+            if (root == null)
+            {
+                addLog(false, "GetFullName", string.Format("ArgumentNullException root => {0}.", root));
+                throw new ArgumentNullException("root");
+            }
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                addLog(false, "GetFullName", string.Format("The passed value may not be empty or whithespace root => {0}.", root));
+                throw new ArgumentException("The passed value may not be empty or whithespace", "root");
+            }
+
+            var rootDirectory = new DirectoryInfo(root);
+            if (rootDirectory.Exists == false)
+            {
+                addLog(false, "GetFullName", string.Format("El directorio {0} no existe.", root));
+                throw new ArgumentException("El directorio {0} no existe.", "root");
+            }
+
+            return rootDirectory.FullName;
         }
 
         private static ConnectionStringCache GetConnectionString()
@@ -232,27 +241,27 @@ namespace AndroidTransferUploads
                     //using (FileStream fs = File.Create(origen)) { }
                 }
 
-                //addLog(true, "SaveAndRename", "File.Exists(fileFullPath), File.Delete(fileFullPath);");
+                ////addLog(true, "SaveAndRename", "File.Exists(fileFullPath), File.Delete(fileFullPath);");
                 // Ensure that the target does not exist.
                 if (File.Exists(fileFullPath))
                     File.Delete(fileFullPath);
 
-                //addLog(true, "SaveAndRename", "if (!Directory.Exists(Path.GetDirectoryName(fileFullPath)))");
+                ////addLog(true, "SaveAndRename", "if (!Directory.Exists(Path.GetDirectoryName(fileFullPath)))");
                 if (!Directory.Exists(Path.GetDirectoryName(fileFullPath)))
                 {
-                    //addLog(true, "SaveAndRename", "Directory.CreateDirectory(Path.GetDirectoryName(fileFullPath));");
+                    ////addLog(true, "SaveAndRename", "Directory.CreateDirectory(Path.GetDirectoryName(fileFullPath));");
                     Directory.CreateDirectory(Path.GetDirectoryName(fileFullPath));
                 }
 
                 //addLog(true, "SaveAndRename", "File.Move(origen, fileFullPath);");
                 // Move the file.
                 File.Move(origen, fileFullPath);
-                addLog(true, "SaveAndRename: ", string.Format("{0} Se movio a {1}.", origen, fileFullPath));
+                //addLog(true, "SaveAndRename: ", string.Format("{0} Se movio a {1}.", origen, fileFullPath));
                 // See if the original exists now.
                 if (File.Exists(origen))
                     addLog(false, "SaveAndRename: ", "No se pudo eliminar el archivo original.");
                 else
-                    addLog(true, "SaveAndRename: ", "Se elimino el archivo original correctamente.");
+                    //addLog(true, "SaveAndRename: ", "Se elimino el archivo original correctamente.");
 
                 return true;
 
@@ -288,7 +297,7 @@ namespace AndroidTransferUploads
         //    }
         //    catch (Exception ex)
         //    {
-        //        addLog(false, "EnviarEmail", "Fallo al enviar el email. " + ex.Message);
+        //        //addLog(false, "EnviarEmail", "Fallo al enviar el email. " + ex.Message);
         //    }
         //}
 
@@ -309,7 +318,7 @@ namespace AndroidTransferUploads
                     var adjAndroid = adjuntosAndroidByIncident.FirstOrDefault();
                     string fecIncidenteShort = adjAndroid.FecIncidente.ToShortDateString();
 
-                    addLog(true, "EnviarEmail", string.Format("Valores onlyToday={0}, fecIncidenteShort={1}, DateTime.Now.ToShortDateString()={2}, (fec1==Now)={3}", onlyToday, fecIncidenteShort, DateTime.Now.ToShortDateString(), (fecIncidenteShort == DateTime.Now.ToShortDateString()).ToString()));
+                    ////addLog(true, "EnviarEmail", string.Format("Valores onlyToday={0}, fecIncidenteShort={1}, DateTime.Now.ToShortDateString()={2}, (fec1==Now)={3}", onlyToday, fecIncidenteShort, DateTime.Now.ToShortDateString(), (fecIncidenteShort == DateTime.Now.ToShortDateString()).ToString()));
                     
                     if (!onlyToday || fecIncidenteShort == DateTime.Now.ToShortDateString())
                     {
@@ -331,7 +340,7 @@ namespace AndroidTransferUploads
                         {
                             PathFiles.Add(item.fileFullPath);
                         }
-                        addLog(true, "EnviarEmail", string.Format("Valores EmailHelpers.Send(adjAndroid.Destinatarios={0}, Subject={1}, Body={2})", adjAndroid.Destinatarios, Subject, Body));
+                        ////addLog(true, "EnviarEmail", string.Format("Valores EmailHelpers.Send(adjAndroid.Destinatarios={0}, Subject={1}, Body={2})", adjAndroid.Destinatarios, Subject, Body));
                         EmailHelpers.Send(To, Subject, Body, PathFiles, null);
                     }
                 }
@@ -339,7 +348,7 @@ namespace AndroidTransferUploads
             }
             catch (Exception ex)
             {
-                addLog(false, "EnviarEmail", "Fallo al enviar el email. " + ex.Message);
+                //addLog(false, "EnviarEmail", "Fallo al enviar el email. " + ex.Message);
             }
         }
         #endregion

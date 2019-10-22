@@ -1,15 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28010.2046
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29306.81
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AndroidTransferUploads", "AndroidTransferUploads\AndroidTransferUploads.csproj", "{A2431223-AB0A-475F-B0BA-4EA7DD649B42}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AndroidTransferUploadsWinForm", "AndroidTransferUploadsWinForm\AndroidTransferUploadsWinForm.csproj", "{2DFD21F0-8224-43C2-B196-299AD38460CC}"
 EndProject
-Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "ShamanClases", "..\ShamanCache\Shaman\ShamanClases\ShamanClases\ShamanClases.vbproj", "{C67374E5-C7FB-43BB-A9B4-436CBC2E7524}"
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "ShamanClases", "..\ShamanClases\ShamanClases\ShamanClases.vbproj", "{C67374E5-C7FB-43BB-A9B4-436CBC2E7524}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShamanClases_CSharp", "..\ShamanCache\Shaman\ShamanClases_CSharp\ShamanClases_CSharp.csproj", "{E9DEC2D3-6082-454D-8F3D-D2456286371D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShamanClases_CSharp", "..\ShamanClases\ShamanClases_CSharp\ShamanClases_CSharp.csproj", "{E9DEC2D3-6082-454D-8F3D-D2456286371D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

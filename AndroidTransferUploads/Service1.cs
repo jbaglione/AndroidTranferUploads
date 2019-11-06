@@ -261,7 +261,7 @@ namespace AndroidTransferUploads
                 if (File.Exists(origen))
                     addLog(false, "SaveAndRename: ", "No se pudo eliminar el archivo original.");
                 else
-                    //addLog(true, "SaveAndRename: ", "Se elimino el archivo original correctamente.");
+                    addLog(true, "SaveAndRename: ", "Se elimino el archivo original correctamente.");
 
                 return true;
 
@@ -341,14 +341,22 @@ namespace AndroidTransferUploads
                             PathFiles.Add(item.fileFullPath);
                         }
                         ////addLog(true, "EnviarEmail", string.Format("Valores EmailHelpers.Send(adjAndroid.Destinatarios={0}, Subject={1}, Body={2})", adjAndroid.Destinatarios, Subject, Body));
-                        EmailHelpers.Send(To, Subject, Body, PathFiles, null);
+                        if(EmailHelpers.Send(To, Subject, Body, PathFiles, null))
+                        {
+                            addLog(true, "EnviarEmail", string.Format("Mail enviado, Valores=> Destinatarios={0}, Subject={1}, Body={2})", adjAndroid.Destinatarios, Subject, Body));
+                        }
+                        else
+                        {
+                            addLog(false, "EnviarEmail", string.Format("Mail no enviado, Valores=> Destinatarios={0}, Subject={1}, Body={2})", adjAndroid.Destinatarios, Subject, Body));
+                        }
+
                     }
                 }
 
             }
             catch (Exception ex)
             {
-                //addLog(false, "EnviarEmail", "Fallo al enviar el email. " + ex.Message);
+                addLog(false, "EnviarEmail", "Fallo al enviar el email. " + ex.Message);
             }
         }
         #endregion

@@ -41,6 +41,8 @@
       <HintPath>..\packages\System.Json.4.5.0\lib\netstandard1.0\System.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.ServiceModel" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -53,6 +55,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AdjuntoAndroid.cs" />
+    <Compile Include="Connected Services\WSWebApps\Reference.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Reference.svcmap</DependentUpon>
+    </Compile>
     <Compile Include="EmailHelpers.cs" />
     <Compile Include="frmLog.cs">
       <SubType>Form</SubType>
@@ -75,7 +82,9 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
+    <None Include="Connected Services\WSWebApps\WebServices.wsdl" />
     <None Include="packages.config" />
+    <None Include="Properties\DataSources\System.Data.DataSet.datasource" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -98,6 +107,24 @@
       <Project>{e9dec2d3-6082-454d-8f3d-d2456286371d}</Project>
       <Name>ShamanClases_CSharp</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Connected Services\" />
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadataStorage Include="Connected Services\WSWebApps\" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Connected Services\WSWebApps\configuration91.svcinfo" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Connected Services\WSWebApps\configuration.svcinfo" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Connected Services\WSWebApps\Reference.svcmap">
+      <Generator>WCF Proxy Generator</Generator>
+      <LastGenOutput>Reference.cs</LastGenOutput>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

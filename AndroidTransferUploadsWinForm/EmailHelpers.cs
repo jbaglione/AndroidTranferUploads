@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Data;
 using System.Linq;
 using System.Net;
 using System.Net.Mail;
@@ -25,12 +26,27 @@ namespace AndroidTransferUploadsWinForm
                     //Preparo el cliente SMTP
                     SmtpClient smtpParamedic = new SmtpClient();
 
-                    smtpParamedic.Host = ConfigurationManager.AppSettings["MailServer"];
-                    smtpParamedic.Port = int.Parse(ConfigurationManager.AppSettings["MailPort"]);
-                    smtpParamedic.EnableSsl = bool.Parse(ConfigurationManager.AppSettings["MailSSL"]);
-                    smtpParamedic.DeliveryMethod = SmtpDeliveryMethod.Network;
-                    smtpParamedic.Credentials = new NetworkCredential(ConfigurationManager.AppSettings["MailAddress"], ConfigurationManager.AppSettings["MailPassword"]);
-
+                    if (ConfigurationManager.AppSettings["SourceSenderEmail"].ToString() == "webconfig")
+                    {
+                        smtpParamedic.Host = ConfigurationManager.AppSettings["MailServer"];
+                        smtpParamedic.Port = int.Parse(ConfigurationManager.AppSettings["MailPort"]);
+                        smtpParamedic.EnableSsl = bool.Parse(ConfigurationManager.AppSettings["MailSSL"]);
+                        smtpParamedic.DeliveryMethod = SmtpDeliveryMethod.Network;
+                        smtpParamedic.Credentials = new NetworkCredential(ConfigurationManager.AppSettings["MailAddress"], ConfigurationManager.AppSettings["MailPassword"]);
+                    }
+                    else
+                    {
+                        WSWebApps.WebAppsSoapClient wsClient = new WSWebApps.WebAppsSoapClient();
+                        wsClient.Open();
+                        DataSet ds = wsClient.GetSenders(3);
+                        wsClient.Close();
+                        DataRow dr = ds.Tables[0].Rows[0];
+                        smtpParamedic.Host = dr["SmtpServer"].ToString();
+                        smtpParamedic.Port = Convert.ToInt32(dr["SmtpPort"]);
+                        smtpParamedic.EnableSsl = Convert.ToBoolean(dr["SmtpEnabledSSL"]);
+                        smtpParamedic.DeliveryMethod = SmtpDeliveryMethod.Network;
+                        smtpParamedic.Credentials = new NetworkCredential(dr["UsuarioId"].ToString(), dr["Password"].ToString());
+                    }
                     //Preparo el EMAIL
                     string FromAdrress = ConfigurationManager.AppSettings["MailAddress"];
                     string FromName = ConfigurationManager.AppSettings["MailFrom"];
@@ -40,7 +56,6 @@ namespace AndroidTransferUploadsWinForm
                         if (!string.IsNullOrEmpty(item) && new MailAddress(item).Address == item)
                             eMail.To.Add(new MailAddress(item));
                     }
-                    
                     eMail.From = new MailAddress(FromAdrress, FromName, Encoding.UTF8);
                     eMail.Subject = Subject;
                     eMail.SubjectEncoding = Encoding.UTF8;
@@ -58,20 +73,9 @@ namespace AndroidTransferUploadsWinForm
                     else if (atachment != null)
                         eMail.Attachments.Add(atachment);
 
-
-                    //Envio de Email
-                    try
-                    {
-                        //log.Info("Enviando email");
-                        smtpParamedic.Send(eMail);
-                        //log.Info("Envio OK");
-                        return true;
-                    }
-                    catch (Exception ex)
-                    {
-                        string mensaje = "Error enviando email de " + To + " - REF: " + ex.Message;
-                        //log.Error(mensaje);
-                    }
+                    smtpParamedic.Send(eMail);
+                    //log.Info("Envio OK");
+                    return true;
                 }
             }
             return false;

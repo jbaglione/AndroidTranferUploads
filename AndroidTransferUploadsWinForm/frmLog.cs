@@ -58,8 +58,28 @@ namespace AndroidTransferUploadsWinForm
         {
             this.tmrRefresh.Enabled = false;
 
+
+            List<AdjuntoAndroid> adjuntosAndroid = new List<AdjuntoAndroid>
+            {
+                new AdjuntoAndroid
+                {
+                    Destinatarios = "jbaglione@paramedic.com.ar",
+                    NroIncidente = "2F4",
+                    FecIncidente = DateTime.Now,
+                    Cliente = "OSDE",
+                    NroInterno = "1057",
+                    NroAfiliado = "62174581101",
+                    Paciente = "BIONDI, MARGARITA",
+                    Sexo = "Femenino",
+                    Edad = "70",
+                    CarpetaRaiz= "C:\\Users\\Paramedic\\Documents\\",
+                    SubCarpeta = "Baglione",
+                    Archivo = "Error logeo-deslogeo.png"
+                }
+            };
+            this.EnviarEmail(adjuntosAndroid);
             /*------> Proceso <--------*/
-            this.TransferFiles(ConfigurationManager.AppSettings["root"]);
+            //this.TransferFiles(ConfigurationManager.AppSettings["root"]);
 
             this.tmrRefresh.Enabled = true;
         }
@@ -231,7 +251,7 @@ namespace AndroidTransferUploadsWinForm
                 if (File.Exists(origen))
                     addLog(false, "SaveAndRename: ", "No se pudo eliminar el archivo original.");
                 else
-                    //addLog(true, "SaveAndRename: ", "Se elimino el archivo original correctamente.");
+                    addLog(true, "SaveAndRename: ", "Se elimino el archivo original correctamente.");
 
                     return true;
 
@@ -311,14 +331,21 @@ namespace AndroidTransferUploadsWinForm
                             PathFiles.Add(item.fileFullPath);
                         }
                         ////addLog(true, "EnviarEmail", string.Format("Valores EmailHelpers.Send(adjAndroid.Destinatarios={0}, Subject={1}, Body={2})", adjAndroid.Destinatarios, Subject, Body));
-                        EmailHelpers.Send(To, Subject, Body, PathFiles, null);
+                        if (EmailHelpers.Send(To, Subject, Body, PathFiles, null))
+                        {
+                            addLog(true, "EnviarEmail", string.Format("Mail enviado, Valores=> Destinatarios={0}, Subject={1}, Body={2})", adjAndroid.Destinatarios, Subject, Body));
+                        }
+                        else
+                        {
+                            addLog(false, "EnviarEmail", string.Format("Mail no enviado, Valores=> Destinatarios={0}, Subject={1}, Body={2})", adjAndroid.Destinatarios, Subject, Body));
+                        }
                     }
                 }
 
             }
             catch (Exception ex)
             {
-                //addLog(false, "EnviarEmail", "Fallo al enviar el email. " + ex.Message);
+                addLog(false, "EnviarEmail", "Fallo al enviar el email. " + ex.Message);
             }
         }
         #endregion

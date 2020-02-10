@@ -127,6 +127,7 @@ namespace AndroidTransferUploadsWinForm
                             EmergencyC.IncGrabaciones grabaciones = new EmergencyC.IncGrabaciones(GetConnectionString());
                             string folderName = new DirectoryInfo(currentFolder).Name;
                             var res = grabaciones.SetAdjuntoAndroid<AdjuntoAndroid>(folderName, Path.GetFileName(origen));
+
                             if (res.Count > 0)
                             {
                                 adjuntoAndroid = res.FirstOrDefault();
@@ -134,6 +135,7 @@ namespace AndroidTransferUploadsWinForm
                                 if (adjuntoAndroid != null)
                                 {
                                     //adjuntoAndroid.CarpetaRaiz = "C:\\Paramedic\\AndroidTranferUploads\\AdjuntosParaPrueba\\destino";
+                                    addLog(true, "TransferFiles", string.Format("adjuntoAndroid.fileFullPath = {0}", adjuntoAndroid.fileFullPath));
                                     if (SaveAndRename(origen, adjuntoAndroid.fileFullPath))
                                         adjuntosAndroid.Add(adjuntoAndroid);
                                 }

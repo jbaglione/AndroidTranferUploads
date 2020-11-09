@@ -13,32 +13,47 @@ namespace AndroidTransferUploads.Service.Core
     {
         public delegate void AddLog(bool rdo, string logProcedure, string logDescription, bool clear = false);
         public AddLog addLog;
+
+        //Configs
+        string root = ConfigurationManager.AppSettings["root"];
+        bool transferFichadas = ConfigurationManager.AppSettings["TransferFichadas"] == "1";
+        bool transferElectros = ConfigurationManager.AppSettings["TransferElectros"] == "1";
+        string ingresosPathDest = ConfigurationManager.AppSettings["ingresosPathDest"];
+        bool onlyToday = ConfigurationManager.AppSettings.Get("onlyToday") == "1";
+
+        string mailSubject = ConfigurationManager.AppSettings["MailSubject"];
+        string mailBody = ConfigurationManager.AppSettings["MailBody"];
+
+        bool fullLog = ConfigurationManager.AppSettings["fullLog"] == "1";
+
         //Descripcion.
-        //Siendo archivos01 = 192.168.0.239
-        //Posicionarse en \\archivos01\ftp paramedic\express\AndroidUploads\4678913118
+        //Posicionarse en root
         //Recorrer, carpeta x carpeta
         //Por cada archivo dentro de cada carpeta:
+        //  1. Si es Electro
         //    a.Ejecutar el método IncGrabaciones.SetAdjunto con el nombre del archivo y nombre de subcarpeta(29, 9672084_131897061540023425.jpg)
         //    b.Devuelve un datable con: carpeta raíz \ subcarpeta \ nombre archivo_1 \ info \ destinatarios
         //    c.Crear la subcarpeta si no existe
         //    d.Mover el archivo inicial al archivo de destino
         //    e.Enviar por e - mail a los destinatarios armando el mail con la info recibida en dicha columna
+        // 2. Si esFichada
+        //      a.
+        //      b. 
         //Dentro del directorio hay carpetas con los archivos (nroDeMoviles).
         public void TransferFiles()
         {
-            string root = ConfigurationManager.AppSettings["root"];
             root = GetFullName(root);
 
             var folders = new Queue<string>();
             folders.Enqueue(root);
 
-            //addLog(true, "TransferFiles", string.Format("folders.Count = {0}.", folders.Count));
             while (folders.Count != 0) //recorro carpetas de moviles
             {
                 string currentFolder = folders.Dequeue();
-                addLog(true, "TransferFiles", string.Format("Buscando archivos en {0}", currentFolder));
 
-                //TransferElectros(folders, currentFolder, "Images");
+                if(fullLog)
+                    addLog(true, "TransferFiles", string.Format("Buscando imagenes en {0}", currentFolder));
+
                 TransferFiles(folders, currentFolder);
             }
         }
@@ -52,21 +67,23 @@ namespace AndroidTransferUploads.Service.Core
 
                 if (currentFiles.Count() > 0)
                 {
-                    addLog(true, "TransferFiles", string.Format("Se encontraron {0} imagenes", currentFiles.Count()));
+                    addLog(true, "TransferFiles", string.Format("Se encontraron {0} imagenes en {1}", currentFiles.Count(), currentFolder));
 
-                    if (currentFolder.Contains("Fichada") && ConfigurationManager.AppSettings["TransferFichadas"] == "1")
+                    if (currentFolder.Contains("Fichada") && transferFichadas)
                     {
                         TransferFichadas(currentFiles);
-                    }
-
-                    if (currentFolder.Contains("Images") && ConfigurationManager.AppSettings["TransferElectros"] == "1")
+                    } else if (currentFolder.Contains("Images") && transferElectros)
+                    {
+                        TransferElectros(currentFolder, currentFiles);
+                    } else //Fix because some electro images, are saving in the root of movile.
                     {
                         TransferElectros(currentFolder, currentFiles);
                     }
                 }
                 else
                 {
-                    addLog(true, "TransferFiles", string.Format("No se encontraron imagenes en {0}", currentFolder));
+                    if (fullLog)
+                        addLog(true, "TransferFiles", string.Format("No se encontraron imagenes en {0}", currentFolder));
                 }
             }
             // Ignore this exceptions
@@ -138,7 +155,7 @@ namespace AndroidTransferUploads.Service.Core
                 //addLog(true, "TransferFichadas", string.Format("origen(currentFile) = {0}", origen));
                 FileToTransfer fichadaFileToTransfer = new FileToTransfer();
 
-                fichadaFileToTransfer.CarpetaRaiz = ConfigurationManager.AppSettings["ingresosPathDest"];
+                fichadaFileToTransfer.CarpetaRaiz = ingresosPathDest;
                 fichadaFileToTransfer.SubCarpeta = GetAnsiDateFromFileName(origen);
                 fichadaFileToTransfer.Archivo = Path.GetFileName(origen);
                 //adjuntoAndroid.CarpetaRaiz = "C:\\Paramedic\\AndroidTranferUploads\\AdjuntosParaPrueba\\destino";
@@ -146,12 +163,12 @@ namespace AndroidTransferUploads.Service.Core
                 if (SaveAndRename(origen, fichadaFileToTransfer.fileFullPath))
                     fichadasFileToTransfer.Add(fichadaFileToTransfer);
             }
-            addLog(true, "TransferFichadas", string.Format("Se transfirieron las siguientes {0} Fichadas correctamente", fichadasFileToTransfer.Count));
+            addLog(true, "TransferFichadas", string.Format("Se transfirieron {0} Fichadas correctamente", fichadasFileToTransfer.Count));
         }
 
         private string GetAnsiDateFromFileName(string origen)
         {
-            origen = "1903606_132491406120165099.jpg";
+            //origen = "1903606_132491406120165099.jpg";
             long fileTimeUtc = Convert.ToInt64(origen.Split('_').Last().Split('.').First());
 
             DateTime fCreationTime = DateTime.FromFileTime(fileTimeUtc);
@@ -271,20 +288,19 @@ namespace AndroidTransferUploads.Service.Core
                     .Select(grp => grp.ToList())
                     .ToList();
 
-                bool onlyToday = ConfigurationManager.AppSettings.Get("onlyToday") == "1";
-
                 foreach (List<AdjuntoAndroid> adjuntosAndroidByIncident in groupedAdjuntosAndroid)
                 {
                     var adjAndroid = adjuntosAndroidByIncident.FirstOrDefault();
                     string fecIncidenteShort = adjAndroid.FecIncidente.ToShortDateString();
 
-                    ////addLog(true, "EnviarEmail", string.Format("Valores onlyToday={0}, fecIncidenteShort={1}, DateTime.Now.ToShortDateString()={2}, (fec1==Now)={3}", onlyToday, fecIncidenteShort, DateTime.Now.ToShortDateString(), (fecIncidenteShort == DateTime.Now.ToShortDateString()).ToString()));
+                    if (fullLog)
+                        addLog(true, "EnviarEmail", string.Format("Valores onlyToday={0}, fecIncidenteShort={1}, DateTime.Now.ToShortDateString()={2}, (fec1==Now)={3}", onlyToday, fecIncidenteShort, DateTime.Now.ToShortDateString(), (fecIncidenteShort == DateTime.Now.ToShortDateString()).ToString()));
 
                     if (!onlyToday || fecIncidenteShort == DateTime.Now.ToShortDateString())
                     {
                         List<string> To = adjAndroid.Destinatarios.Split(';').ToList();//.Where(x => x == "jbaglione@paramedic.com.ar")
-                        string Subject = string.Format(ConfigurationManager.AppSettings["MailSubject"], fecIncidenteShort, adjAndroid.NroIncidente);
-                        string Body = string.Format(ConfigurationManager.AppSettings["MailBody"],
+                        string Subject = string.Format(mailSubject, fecIncidenteShort, adjAndroid.NroIncidente);
+                        string Body = string.Format(mailBody,
                             fecIncidenteShort,
                             adjAndroid.NroIncidente,
                             adjAndroid.Cliente,
@@ -300,7 +316,9 @@ namespace AndroidTransferUploads.Service.Core
                         {
                             PathFiles.Add(item.fileFullPath);
                         }
-                        ////addLog(true, "EnviarEmail", string.Format("Valores EmailHelpers.Send(adjAndroid.Destinatarios={0}, Subject={1}, Body={2})", adjAndroid.Destinatarios, Subject, Body));
+
+                        if (fullLog)
+                            addLog(true, "EnviarEmail", string.Format("Valores EmailHelpers.Send(adjAndroid.Destinatarios={0}, Subject={1}, Body={2})", adjAndroid.Destinatarios, Subject, Body));
                         if (EmailHelpers.Send(To, Subject, Body, PathFiles, null))
                         {
                             addLog(true, "EnviarEmail", string.Format("Mail enviado, Valores=> Destinatarios={0}, Subject={1}, Body={2})", adjAndroid.Destinatarios, Subject, Body));
@@ -309,10 +327,8 @@ namespace AndroidTransferUploads.Service.Core
                         {
                             addLog(false, "EnviarEmail", string.Format("Mail no enviado, Valores=> Destinatarios={0}, Subject={1}, Body={2})", adjAndroid.Destinatarios, Subject, Body));
                         }
-
                     }
                 }
-
             }
             catch (Exception ex)
             {
